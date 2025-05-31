@@ -405,6 +405,7 @@ async def generate_pipeline_ai(repo: RepositoryAnalysis, background_tasks: Backg
             prompt = f"""Generate a GitLab CI/CD pipeline YAML for the following project.\nLanguage: {analysis_result['data'].get('language', 'unknown')}\nFiles: {', '.join(analysis_result['data'].get('structure', {}).get('files', [])[:10])}\nRequirements: {repo.repo_url} ({repo.branch})\nReturn only the YAML, no explanation."""
             try:
                 pipeline_yaml = await analysis_agent._call_openai(prompt)
+                print(f"[DEBUG] OpenAI pipeline_yaml response: {pipeline_yaml}")
             except Exception as oe:
                 pipeline_yaml = f"OpenAI error: {oe}"
             set_operation(operation_id, {
