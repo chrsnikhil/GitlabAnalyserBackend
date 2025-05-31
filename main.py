@@ -27,7 +27,8 @@ app.add_middleware(
     allow_origins=[
         "https://gitlab-workflow-frontend.onrender.com",  # Render frontend URL
         "http://localhost:3000",  # Local development
-        "https://gitlab-workflow-backend.onrender.com"  # Render backend URL
+        "https://gitlab-workflow-backend.onrender.com",  # Render backend URL
+        "https://gitlab-analyser-frontend.vercel.app/" # Vercel frontend URL
     ],
     allow_credentials=True,
     allow_methods=["*"],
