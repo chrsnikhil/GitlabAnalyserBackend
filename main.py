@@ -11,6 +11,7 @@ from agents.deployment_agent import DeploymentAgent
 from datetime import datetime
 import json
 from operation_store import get_operation, set_operation
+import re
 
 # Load environment variables
 load_dotenv()
@@ -406,6 +407,9 @@ async def generate_pipeline_ai(repo: RepositoryAnalysis, background_tasks: Backg
             try:
                 pipeline_yaml = await analysis_agent._call_openai(prompt)
                 print(f"[DEBUG] OpenAI pipeline_yaml response: {pipeline_yaml}")
+                # Strip markdown code block if present
+                if pipeline_yaml.strip().startswith("```"):
+                    pipeline_yaml = re.sub(r"^```[a-zA-Z]*\n?|```$", "", pipeline_yaml.strip(), flags=re.MULTILINE).strip()
             except Exception as oe:
                 pipeline_yaml = f"OpenAI error: {oe}"
             set_operation(operation_id, {
