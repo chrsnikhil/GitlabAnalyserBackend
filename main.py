@@ -274,7 +274,7 @@ async def review_code(request: CodeReviewRequest, background_tasks: BackgroundTa
 
 Focus areas: {', '.join(request.focus_areas)}
 
-Return a valid JSON object with the following keys: findings (list), recommendations (list), score (number). Do not include any text outside the JSON object.
+Provide the review strictly as a valid JSON object with the following keys: "findings" (list of strings), "recommendations" (list of strings), and "score" (number between 0 and 10).
 
 Code:
 {content[:2000]}  # Limit content length
@@ -284,12 +284,28 @@ Code:
                         try:
                             review = await analysis_agent._call_openai(prompt)
                             print(f"[DEBUG] OpenAI review response for {file['path']}: {review}")
-                            review_data = json.loads(review)
-                            findings.extend(review_data.get("findings", []))
-                            recommendations.extend(review_data.get("recommendations", []))
-                            total_score += review_data.get("score", 0)
-                            files_reviewed += 1
+                            
+                            try:
+                                # Attempt to parse the review as JSON
+                                review_data = json.loads(review)
+                                findings.extend(review_data.get("findings", []))
+                                recommendations.extend(review_data.get("recommendations", []))
+                                total_score += review_data.get("score", 0)
+                                files_reviewed += 1
+                            except json.JSONDecodeError as json_e:
+                                # Handle JSON parsing errors gracefully
+                                print(f"[ERROR] JSON parsing failed for {file['path']}: {json_e}")
+                                print(f"[ERROR] Malformed JSON response: {review}")
+                                findings.append({
+                                    "type": "error",
+                                    "severity": "low",
+                                    "description": f"Failed to parse review for {file['path']} due to invalid JSON response from AI.",
+                                    "location": file["path"]
+                                })
+                                # Do NOT break here, continue with other files
+
                         except Exception as oe:
+                            # Handle other OpenAI call errors (like quota exceeded)
                             openai_failed = True
                             openai_error_message = str(oe)
                             print(f"[ERROR] OpenAI failed for {file['path']}: {oe}")
