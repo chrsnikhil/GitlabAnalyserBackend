@@ -288,7 +288,19 @@ Code:
                             try:
                                 # Attempt to parse the review as JSON
                                 review_data = json.loads(review)
-                                findings.extend(review_data.get("findings", []))
+                                # Wrap string findings as objects
+                                for finding in review_data.get("findings", []):
+                                    if isinstance(finding, dict):
+                                        findings.append(finding)
+                                    else:
+                                        findings.append({
+                                            "type": "finding",
+                                            "description": finding,
+                                            "severity": "info",
+                                            "location": file["path"],
+                                            "recommendation": None
+                                        })
+                                # Wrap string recommendations as objects (optional, if frontend expects)
                                 recommendations.extend(review_data.get("recommendations", []))
                                 total_score += review_data.get("score", 0)
                                 files_reviewed += 1
