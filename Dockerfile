@@ -9,6 +9,9 @@ RUN apt-get update && apt-get install -y \
     git \
     && rm -rf /var/lib/apt/lists/*
 
+# Create a non-root user
+RUN useradd -m -u 1000 appuser
+
 # Copy requirements first to leverage Docker cache
 COPY requirements.txt .
 
@@ -21,6 +24,9 @@ COPY . .
 # Set environment variables
 ENV PORT=8080
 ENV PYTHONUNBUFFERED=1
+
+# Switch to non-root user
+USER appuser
 
 # Expose the port
 EXPOSE 8080
