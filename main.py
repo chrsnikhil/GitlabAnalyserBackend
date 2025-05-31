@@ -386,6 +386,77 @@ Code:
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+@app.post("/generate-pipeline-ai", response_model=PipelineResponse)
+async def generate_pipeline_ai(repo: RepositoryAnalysis, background_tasks: BackgroundTasks):
+    """
+    Generate a CI/CD pipeline using OpenAI (on demand, credit usage warning)
+    """
+    try:
+        operation_id = f"generateai_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+        analysis_agent = CodeAnalysisAgent()
+        analysis_result = await analysis_agent.execute({
+            "repo_url": str(repo.repo_url),
+            "branch": repo.branch
+        })
+        if analysis_result["status"] == "error":
+            raise HTTPException(status_code=500, detail=analysis_result["message"])
+        async def run_generation():
+            # Compose a prompt for OpenAI
+            prompt = f"""Generate a GitLab CI/CD pipeline YAML for the following project.\nLanguage: {analysis_result['data'].get('language', 'unknown')}\nFiles: {', '.join(analysis_result['data'].get('structure', {}).get('files', [])[:10])}\nRequirements: {repo.repo_url} ({repo.branch})\nReturn only the YAML, no explanation."""
+            try:
+                pipeline_yaml = await analysis_agent._call_openai(prompt)
+            except Exception as oe:
+                pipeline_yaml = f"OpenAI error: {oe}"
+            set_operation(operation_id, {
+                "status": "completed",
+                "message": "Pipeline generated with OpenAI. This used your OpenAI credits.",
+                "operation_id": operation_id,
+                "pipeline_yaml": pipeline_yaml,
+                "data": analysis_result["data"]
+            })
+        background_tasks.add_task(run_generation)
+        return PipelineResponse(
+            status="processing",
+            message="Pipeline generation with OpenAI started. This will use your OpenAI credits.",
+            operation_id=operation_id,
+            data=analysis_result["data"]
+        )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/validate-pipeline-ai")
+async def validate_pipeline_ai(request: ValidationRequest, background_tasks: BackgroundTasks):
+    """
+    Validate the pipeline YAML using OpenAI (on demand, credit usage warning)
+    """
+    try:
+        operation_id = f"validateai_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+        agent = ValidationAgent()
+        async def run_validation():
+            prompt = f"""Review the following GitLab CI/CD pipeline YAML for errors, best practices, and improvements.\nReturn a JSON object with keys: valid (bool), errors (list), warnings (list), suggestions (list).\nYAML:\n{request.pipeline_yaml}"""
+            try:
+                validation_result = await agent._call_openai(prompt)
+                set_operation(operation_id, {
+                    "status": "completed",
+                    "message": "Pipeline validated with OpenAI. This used your OpenAI credits.",
+                    "operation_id": operation_id,
+                    "validation_result": validation_result
+                })
+            except Exception as oe:
+                set_operation(operation_id, {
+                    "status": "error",
+                    "message": f"OpenAI error: {oe}",
+                    "operation_id": operation_id
+                })
+        background_tasks.add_task(run_validation)
+        return {
+            "status": "processing",
+            "message": "Pipeline validation with OpenAI started. This will use your OpenAI credits.",
+            "operation_id": operation_id
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=8000) 
