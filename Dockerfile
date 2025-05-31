@@ -21,6 +21,9 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy the rest of the application
 COPY . .
 
+# Change ownership of /app to appuser
+RUN chown -R appuser:appuser /app
+
 # Set environment variables
 ENV PORT=8080
 ENV PYTHONUNBUFFERED=1
