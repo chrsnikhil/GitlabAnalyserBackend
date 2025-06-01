@@ -354,7 +354,10 @@ Code:
                 score = 50
                 summary = f"OpenAI review failed: {openai_error_message or 'Unknown error'}. Returned mock review."
             else:
+                # Calculate average score (each file is already scored 0-10)
                 score = total_score / files_reviewed if files_reviewed > 0 else 0
+                # Ensure score is between 0-10
+                score = min(max(score, 0), 10)
                 # Get overall recommendations
                 if findings or recommendations:
                     summary_prompt = f"""Based on these findings and recommendations, provide a summary of the most important improvements needed:\nFindings: {json.dumps(findings)}\nRecommendations: {json.dumps(recommendations)}\n\nReturn a brief summary paragraph."""
